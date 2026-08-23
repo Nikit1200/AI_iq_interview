@@ -1,4 +1,3 @@
-import React from 'react'
 import { useNavigate } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa';
 import {motion} from "motion/react"
@@ -9,6 +8,7 @@ import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 
 function Step3Report ({report})  {
+  const navigate = useNavigate()
   if(!report){
     return(
       <div className="min-h-screen flex items-center justify-center">
@@ -16,7 +16,6 @@ function Step3Report ({report})  {
       </div>
     );
   }
-  const navigate = useNavigate()
   const {
     finalScore =0,
     confidence =0,
@@ -36,8 +35,8 @@ const skills = [
   { label: "Correctness", value: correctness },
 ];
 
-let performanceText = "";
-let shortTagline = "";
+let performanceText;
+let shortTagline;
 
 if (finalScore >= 8) {
   performanceText = "Ready for job ...";
@@ -118,7 +117,7 @@ doc.text(`Correctness: ${correctness}`, margin + 10, currentY + 26);
 currentY += 45;
 
 // ================= ADVICE =================
-let advice = "";
+let advice;
 
 if (finalScore >= 8) {
   advice =
