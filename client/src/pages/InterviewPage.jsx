@@ -1,14 +1,24 @@
-import React from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Step2Interview from '../components/Step2Interview'
-import Step3Report from '../components/Step3Report'
 import Step1SetUp from '../components/step1SetUp'
 import { useNavigate } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 
 const InterviewPage = () => {
-  const[step, setStep]  = React.useState(1)
+  const[step, setStep]  = useState(1)
   const[interviewData, setInterviewData] = useState(null)
   const navigate = useNavigate()
+  const { userData, authChecked } = useSelector((state) => state.user)
+
+  useEffect(() => {
+    if (authChecked && !userData) navigate('/auth', { replace: true })
+  }, [authChecked, navigate, userData])
+
+  if (!authChecked) {
+    return <div className='min-h-screen flex items-center justify-center text-gray-500'>Checking your session...</div>
+  }
+
+  if (!userData) return null
   return (
     <div className= 'min-h-screen bg-gray-50'>
         {step===1 && (
@@ -22,9 +32,6 @@ const InterviewPage = () => {
         <Step2Interview interviewData = {interviewData}
         onFinish = {(report)=>navigate(`/report/${report.interviewId}`)} />
 )}
-
-{step===3 && (
-    <Step3Report report={interviewData}/>)}
 
     </div>
   )
