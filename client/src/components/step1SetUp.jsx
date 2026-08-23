@@ -54,6 +54,11 @@ function Step1SetUp ({onStart}){
       setAnalysisDone(true);
 
     } catch(error){
+      if (error.response?.status === 401) {
+        dispatch(setUserData(null));
+        navigate("/auth");
+        return;
+      }
       setErrorMessage(error.response?.data?.message || "We could not analyze this resume. Please try again.");
     } finally {
       setAnalyzing(false);
@@ -76,6 +81,11 @@ function Step1SetUp ({onStart}){
           setLoading(false)
           onStart(result.data)
       } catch(error){
+        if (error.response?.status === 401) {
+          dispatch(setUserData(null));
+          navigate("/auth");
+          return;
+        }
         setErrorMessage(error.response?.data?.message || "We could not start the interview. Please try again.")
         setLoading(false)
       }
