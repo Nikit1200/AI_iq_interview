@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import axios from 'axios'
 import { FaArrowLeft, FaCheckCircle } from 'react-icons/fa'
 import { useNavigate } from 'react-router-dom'
 import {motion} from "motion/react";
 import { ServerUrl } from '../App'
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { setUserData } from '../redux/userSlice';
 
 function Pricing (){
@@ -12,6 +12,8 @@ function Pricing (){
   const [selectedPlan, setSelectedPlan] = useState("free");
   const [loadingPlan, setLoadingPlan] = useState(null);
   const dispatch = useDispatch()
+  const { userData } = useSelector((state) => state.user)
+  const [error, setError] = useState("")
 
   const plans=[{
     id:"free",
@@ -57,16 +59,15 @@ function Pricing (){
   ];
 
     const handlePayment = async(plan)=>{
+      if (!userData) {
+        navigate("/auth")
+        return
+      }
       try{
+        setError("")
         setLoadingPlan(plan.id)
-        const amount=
-        plan.id === "basic" ? 100:
-        plan.id === "pro" ? 500 : 0;
-
         const result = await axios.post(ServerUrl + "/api/payment/order",{
           planId:plan.id,
-          amount:amount,
-          credits:plan.credits,
         },{withCredentials:true})
       
 
@@ -89,11 +90,12 @@ function Pricing (){
             color:"#10b981",
           },
         }
+        if (!window.Razorpay) throw new Error("Payment checkout could not be loaded.")
         const rzp = new window.Razorpay(options)
         rzp.open()
         setLoadingPlan(null)
       } catch(error){
-        console.log(error)
+        setError(error.response?.data?.message || error.message || "Unable to start payment. Please try again.")
         setLoadingPlan(null);
       }
     }
@@ -113,6 +115,7 @@ function Pricing (){
           </p>
         </div>
       </div>
+      {error && <p className="max-w-6xl mx-auto mb-5 text-center text-red-600" role="alert">{error}</p>}
 
       <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto'>
 
@@ -165,14 +168,6 @@ function Pricing (){
             <p className="text-gray-500 mt-4 text-sm leading-relaxed">
               {plan.description}
             </p>
-            {/* Description */}
-            <p className='text-gray-500 mt-4 text-sm leading-relaxed'>
-
-              {plan.description}
-            </p>
-
-              
-
               <div className='mt-6 space-y-3 text-left'>
                 {plan.features.map((feature,i)=>(
                   <div key={i} className='flex items-center gap-3' >
