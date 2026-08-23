@@ -5,13 +5,16 @@ import crypto from "crypto"
 
 export const createOrder = async(req,res)=>{
     try{
-        const{planId, amount, credits }= req.body;
-        if(!amount  || !credits){
-            return res.status(400).json({message:"Invalid plan data"});
-        }
+        const { planId } = req.body;
+        const plans = {
+            basic: { amount: 100, credits: 150 },
+            pro: { amount: 500, credits: 650 },
+        };
+        const plan = plans[planId];
+        if (!plan) return res.status(400).json({message:"Select a valid paid plan."});
 
         const options = {
-            amount : amount * 100,
+            amount : plan.amount * 100,
             currency:"INR",
             receipt:`receipt_${Date.now()}`,
         };
@@ -21,8 +24,8 @@ export const createOrder = async(req,res)=>{
         await Payment.create({
             userId:req.userId,
             planId,
-            amount,
-            credits,
+            amount: plan.amount,
+            credits: plan.credits,
             razorpayOrderId:order.id,
             status:"created",
         });
@@ -52,6 +55,7 @@ export const verifyPayment = async(req,res)=>{
 
             const payment = await Payment.findOne({
             razorpayOrderId: razorpay_order_id,
+            userId: req.userId,
             });
 
             if (!payment) {
@@ -59,7 +63,8 @@ export const verifyPayment = async(req,res)=>{
             }
 
             if (payment.status === "paid") {
-            return res.json({ message: "Already processed" });
+            const user = await User.findById(payment.userId);
+            return res.json({ success: true, message: "Already processed", user });
             }
             // Update payment record
             payment.status = "paid";
