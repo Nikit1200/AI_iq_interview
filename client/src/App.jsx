@@ -17,6 +17,12 @@ function App() {
 
   useEffect(() => {
     const getUser = async () => {
+      const token = localStorage.getItem("interviewiq_token")
+      if (token) {
+        axios.defaults.headers.common.Authorization = `Bearer ${token}`
+      } else {
+        delete axios.defaults.headers.common.Authorization
+      }
       try {
         const result = await axios.get(ServerUrl + "/api/user/current-user", { withCredentials: true })
         dispatch(setUserData(result.data))
