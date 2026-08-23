@@ -9,13 +9,19 @@ import { ServerUrl } from '../App'
 import {useDispatch} from 'react-redux';
 import {setUserData} from '../redux/userSlice';
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 
 const Auth = ({isModel = false}) => {
 const dispatch = useDispatch()
 const navigate = useNavigate()
+const [isSigningIn, setIsSigningIn] = useState(false)
+const [errorMessage, setErrorMessage] = useState("")
 
 const handleGoogleAuth = async () => {
+    if (isSigningIn) return
     try{
+        setIsSigningIn(true)
+        setErrorMessage("")
         const response = await signInWithPopup(auth, provider)
         let User = response.user
         let name = User.displayName
@@ -25,8 +31,10 @@ const handleGoogleAuth = async () => {
         navigate("/")
         
     } catch(error){
-        console.log(error)
+        setErrorMessage(error.code === "auth/popup-closed-by-user" ? "Sign-in was cancelled." : "Google sign-in failed. Please try again.")
         dispatch(setUserData(null))
+    } finally {
+        setIsSigningIn(false)
     }
 }
     return (
@@ -57,13 +65,15 @@ const handleGoogleAuth = async () => {
 
             <motion.button type='button'
             onClick = {handleGoogleAuth}
+            disabled={isSigningIn}
             whileHover = {{opacity:0.9,scale:1.03}} 
             whileTap = {{opacity:1, scale:0.98}}
-            className='w-full flex items-center justify-center gap-3 py-3.5 bg-slate-950 text-white rounded-full shadow-md font-medium focus:outline-none focus:ring-4 focus:ring-slate-200'>
+            className='w-full flex items-center justify-center gap-3 py-3.5 bg-slate-950 text-white rounded-full shadow-md font-medium focus:outline-none focus:ring-4 focus:ring-slate-200 disabled:opacity-60'>
                 <FcGoogle size={20} />
-                Continue with Google
+                {isSigningIn ? "Signing in..." : "Continue with Google"}
 
             </motion.button>
+            {errorMessage && <p className="mt-4 text-center text-sm text-red-600" role="alert">{errorMessage}</p>}
         </motion.div>
     </div>
     
