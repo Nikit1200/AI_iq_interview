@@ -388,7 +388,7 @@ export const finishInterview = async(req, res)=>{
 
 export const getMyInterviews = async(req, res)=>{
     try{
-        const interviews = await Interview.find({userId:req.userId})
+        const interviews = await Interview.find({userId:req.userId, status:"completed"})
         .sort({createdAt:-1})
         .select("role experience mode finalScore status createdAt")
 
@@ -401,7 +401,7 @@ export const getMyInterviews = async(req, res)=>{
 
 export const getInterviewReport = async(req, res)=>{
     try{
-        const interview = await Interview.findById(req.params.id)
+        const interview = await Interview.findOne({_id:req.params.id, userId:req.userId})
 
         if(!interview){
             return res.status(404).json({message:"Interview not found "});
