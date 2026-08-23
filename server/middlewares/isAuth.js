@@ -1,5 +1,17 @@
 import jwt from "jsonwebtoken"
 
+export const optionalAuth = (req, res, next) => {
+    const { token } = req.cookies;
+    if (!token) return next();
+
+    try {
+        req.userId = jwt.verify(token, process.env.JWT_SECRET).userId;
+    } catch {
+        // A missing or expired session is anonymous for session-status checks.
+    }
+    next();
+};
+
 const isAuth = async (req, res, next)=>{
     try{
         let {token} = req.cookies
