@@ -1,7 +1,11 @@
 import jwt from "jsonwebtoken"
 
 export const optionalAuth = (req, res, next) => {
-    const { token } = req.cookies;
+    const cookieToken = req.cookies.token;
+    const bearerToken = req.headers.authorization?.startsWith("Bearer ")
+        ? req.headers.authorization.slice(7)
+        : null;
+    const token = cookieToken || bearerToken;
     if (!token) return next();
 
     try {
@@ -14,7 +18,11 @@ export const optionalAuth = (req, res, next) => {
 
 const isAuth = async (req, res, next)=>{
     try{
-        let {token} = req.cookies
+        const cookieToken = req.cookies.token;
+        const bearerToken = req.headers.authorization?.startsWith("Bearer ")
+            ? req.headers.authorization.slice(7)
+            : null;
+        const token = cookieToken || bearerToken;
 
         if(!token){
             return res.status(401).json({message:"Authentication is required"})
