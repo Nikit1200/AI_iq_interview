@@ -10,11 +10,13 @@ import{
 import axios from "axios";
 import { ServerUrl } from '../App'
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { setUserData } from '../redux/userSlice'
 
 function Step1SetUp ({onStart}){
   const {userData} = useSelector((state)=>state.user)
   const dispatch = useDispatch()
+  const navigate = useNavigate()
   const[role,setRole] = useState("");
   const[name,setName] = useState("");
   const[experience,setExperience]= useState("");
@@ -26,9 +28,15 @@ function Step1SetUp ({onStart}){
   const[analysisDone, setAnalysisDone] = useState(false);
   const[analyzing,setAnalyzing] = useState(false);
   const[loading,setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
    
   const handleUploadResume = async() =>{
     if(!resumeFile || analyzing) return;
+    if (!userData) {
+      navigate("/auth");
+      return;
+    }
+    setErrorMessage("");
     setAnalyzing(true)
 
     const formdata = new FormData()
@@ -45,14 +53,19 @@ function Step1SetUp ({onStart}){
       setResumeText(result.data.resumeText || "");
       setAnalysisDone(true);
 
-      setAnalyzing(false);
-
     } catch(error){
-      console.log(error)
+      setErrorMessage(error.response?.data?.message || "We could not analyze this resume. Please try again.");
+    } finally {
+      setAnalyzing(false);
     }
   }
 
   const handleStart = async()=>{
+    if (!userData) {
+      navigate("/auth");
+      return;
+    }
+    setErrorMessage("");
     setLoading(true)
       try{
           const result = await axios.post(ServerUrl + "/api/interview/generate-questions",{name, role, experience, mode, resumeText, projects, skills},{withCredentials:true})
@@ -63,7 +76,7 @@ function Step1SetUp ({onStart}){
           setLoading(false)
           onStart(result.data)
       } catch(error){
-        console.log(error)
+        setErrorMessage(error.response?.data?.message || "We could not start the interview. Please try again.")
         setLoading(false)
       }
     }
@@ -148,7 +161,11 @@ function Step1SetUp ({onStart}){
                 
                  
                   </div>
-                   <select 
+          {errorMessage && (
+            <p role="alert" className="mb-4 text-sm text-red-600">{errorMessage}</p>
+          )}
+
+          <select
                  onChange={(e)=>setMode(e.target.value)}
                  value= {mode} className='w-full py-3 px-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition'>
 
