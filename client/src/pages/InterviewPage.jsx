@@ -3,10 +3,12 @@ import { useState } from 'react'
 import Step2Interview from '../components/Step2Interview'
 import Step3Report from '../components/Step3Report'
 import Step1SetUp from '../components/step1SetUp'
+import { useNavigate } from 'react-router-dom'
 
 const InterviewPage = () => {
   const[step, setStep]  = React.useState(1)
   const[interviewData, setInterviewData] = useState(null)
+  const navigate = useNavigate()
   return (
     <div className= 'min-h-screen bg-gray-50'>
         {step===1 && (
@@ -18,9 +20,7 @@ const InterviewPage = () => {
 
     {step===2 && (
         <Step2Interview interviewData = {interviewData}
-        onFinish = {(report)=>{setInterviewData(report);
-
-        }} />
+        onFinish = {(report)=>navigate(`/report/${report.interviewId}`)} />
 )}
 
 {step===3 && (
