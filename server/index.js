@@ -16,7 +16,7 @@ app.set('trust proxy', 1)
 const allowedOrigins = [
     'http://localhost:5173',
     'https://ai-interview-client23.onrender.com',
-    "https://ai-iq-interview-1.onrender.com"
+    'https://ai-iq-interview-1.onrender.com'
 ]
 
 app.use(cors({
