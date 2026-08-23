@@ -22,7 +22,9 @@ function App() {
         dispatch(setUserData(result.data))
         console.log(result.data)
       } catch (error) {
-        console.log(error)
+        if (error.response?.status !== 401) {
+          console.error("Unable to restore the signed-in user:", error)
+        }
         dispatch(setUserData(null))
       }
     }
