@@ -4,13 +4,12 @@ export const getCurrentUser = async (req, res) => {
     try {
         const userId = req.userId
         if (!userId) {
-            console.error('getCurrentUser: missing req.userId')
-            return res.status(400).json({ message: 'Missing user id' })
+            return res.status(200).json(null)
         }
 
         const user = await User.findById(userId)
         if (!user) {
-            return res.status(404).json({ message: 'User not found' })
+            return res.status(200).json(null)
         }
 
         return res.status(200).json(user)
