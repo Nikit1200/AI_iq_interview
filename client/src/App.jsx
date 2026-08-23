@@ -5,7 +5,7 @@ import Auth from './pages/Auth'
 import InterviewPage from './pages/InterviewPage'
 import { useDispatch } from 'react-redux'
 import axios from 'axios'
-import { setUserData } from './redux/userSlice'
+import { setAuthChecked, setUserData } from './redux/userSlice'
 import InterviewHistory from './pages/InterviewHistory'
 import Pricing from './pages/Pricing'
 import InterviewReport from './pages/InterviewReport'
@@ -26,6 +26,8 @@ function App() {
           console.error("Unable to restore the signed-in user:", error)
         }
         dispatch(setUserData(null))
+      } finally {
+        dispatch(setAuthChecked(true))
       }
     }
     getUser()
