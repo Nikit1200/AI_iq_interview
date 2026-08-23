@@ -16,9 +16,12 @@ const [isIntroPhase, setIsIntroPhase] = useState(true);
 const [isMicOn, setIsMicOn] = useState(false);
 
 const recognitionRef = useRef(null);
+const micStreamRef = useRef(null);
 const micRequestedRef = useRef(false);
+const speechRecognitionFailedRef = useRef(false);
 const isAIPlayingRef = useRef(false);
 const [isAIPlaying, setIsAIPlaying] = useState(false);
+const [micError, setMicError] = useState("");
 
 const [currentIndex, setCurrentIndex] = useState(0);
 const [answer, setAnswer] = useState("");
@@ -29,8 +32,13 @@ const [timeLeft, setTimeLeft] = useState(
 
 const [selectedVoice, setSelectedVoice] = useState(null);
 const [isSubmitting, setIsSubmitting] = useState(false);
+const [submitError, setSubmitError] = useState("");
+const finishedRef = useRef(false);
 const [voiceGender, setVoiceGender] = useState("female");
 const [subtitle, setSubtitle] = useState("");
+const speechRecognitionSupported = Boolean(
+  window.SpeechRecognition || window.webkitSpeechRecognition
+);
 
 const videoRef = useRef(null);
 
@@ -77,6 +85,28 @@ window.speechSynthesis.onvoiceschanged = loadVoices;
 },[])
 
 const videoSource = voiceGender ==="male" ? maleVideo: femaleVideo;
+
+function startMic() {
+  if (recognitionRef.current && micRequestedRef.current && !isAIPlayingRef.current) {
+    try {
+      recognitionRef.current.start();
+    } catch (error) {
+      if (error.name !== "InvalidStateError") {
+        console.log(error);
+      }
+    }
+  }
+}
+
+function stopMic() {
+  if (recognitionRef.current) {
+    try {
+      recognitionRef.current.stop();
+    } catch (error) {
+      if (error.name !== "InvalidStateError") console.log(error);
+    }
+  }
+}
 
 const speakText = (text)=>{
   return new Promise((resolve)=>{
@@ -175,9 +205,10 @@ useEffect(()=>{
 },[isIntroPhase,currentIndex,  isAIPlaying])
 
 useEffect(() => {
-  if (!("SpeechRecognition" in window) && !("webkitSpeechRecognition" in window)) return;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
 
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  const recognition = new SpeechRecognition();
   recognition.lang = "en-US";
   recognition.continuous = true;
   recognition.interimResults = false;
@@ -197,10 +228,22 @@ useEffect(() => {
   };
 
   recognition.onstart = () => setIsMicOn(true);
+  recognition.onerror = (event) => {
+    setIsMicOn(false);
+    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      setMicError("Microphone access was blocked. Allow microphone access for this site and try again.");
+    } else if (event.error === "network") {
+      speechRecognitionFailedRef.current = true;
+      micRequestedRef.current = false;
+      setMicError("Voice recognition is unavailable in this browser. Use Chrome or Edge, or type your answer.");
+    } else if (event.error !== "aborted") {
+      setMicError(`Voice input error: ${event.error}`);
+    }
+  };
   recognition.onend = () => {
     setIsMicOn(false);
 
-    if (micRequestedRef.current && !isAIPlayingRef.current) {
+    if (micRequestedRef.current && !speechRecognitionFailedRef.current && !isAIPlayingRef.current) {
       setTimeout(() => startMic(), 100);
     }
   };
@@ -208,54 +251,59 @@ useEffect(() => {
   recognitionRef.current = recognition;
 }, []);
 
-const startMic = () => {
-  if (recognitionRef.current && micRequestedRef.current && !isAIPlayingRef.current) {
-    try {
-      recognitionRef.current.start();
-    } catch (error) {
-      if (error.name !== "InvalidStateError") {
-        console.log(error)
-      }
-    }
-  }
-};
-
-const stopMic = () => {
-  if (recognitionRef.current) {
-    recognitionRef.current.stop();
-  }
-};
-
-const toggleMic = () => {
+const toggleMic = async () => {
   if (micRequestedRef.current) {
     micRequestedRef.current = false;
     setIsMicOn(false);
     stopMic();
   } else {
+    if (!speechRecognitionSupported) {
+      setMicError("Voice input is not supported in this browser. Use Chrome or Edge.");
+      return;
+    }
+
+    if (!recognitionRef.current) return;
+
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        micStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+      speechRecognitionFailedRef.current = false;
+      setMicError("");
+    } catch {
+      setMicError("Microphone access was blocked. Allow microphone access for this site and try again.");
+      return;
+    }
+
     micRequestedRef.current = true;
     startMic();
   }
 };
 
-const submitAnswer = async()=>{
-  if(isSubmitting) return;
+const submitAnswer = async(answerToSubmit = answer)=>{
+  if(isSubmitting || finishedRef.current) return;
   micRequestedRef.current = false;
   stopMic()
   setIsSubmitting(true)
+  setSubmitError("");
 
     try {
       const result = await axios.post(ServerUrl + "/api/interview/submit-answer", {
         interviewId,
         questionIndex: currentIndex,
-        answer,
+        answer: answerToSubmit,
         timeTaken:
           currentQuestion.timeLimit - timeLeft,
       },{withCredentials:true});
+      if (currentIndex === questions.length - 1) {
+        await finishInterview();
+        return;
+      }
       setFeedback(result.data.feedback)
       speakText(result.data.feedback)
       setIsSubmitting(false)
     } catch (error) {
-      console.log(error)
+      setSubmitError(error.response?.data?.message || "Your answer could not be submitted. Please try again.");
       setIsSubmitting(false)
     }
 }
@@ -279,14 +327,19 @@ const submitAnswer = async()=>{
 };
 
 const finishInterview = async()=>{
+  if (finishedRef.current) return;
+  finishedRef.current = true;
   micRequestedRef.current = false;
   stopMic()
   setIsMicOn(false)
   try{
     const result = await axios.post(ServerUrl + "/api/interview/finish",{
       interviewId},{withCredentials:true} )
+    onFinish({ ...result.data, interviewId })
   } catch(error){
-    console.log(error)
+    finishedRef.current = false;
+    setSubmitError(error.response?.data?.message || "Your interview could not be completed. Please try again.");
+    setIsSubmitting(false);
   }
 }
 
@@ -295,7 +348,8 @@ useEffect(()=>{
   if(!currentQuestion) return;
 
   if(timeLeft===0 && !isSubmitting && !feedback){
-    submitAnswer();
+    const submitTimer = setTimeout(() => submitAnswer(), 0);
+    return () => clearTimeout(submitTimer);
   }
 },[timeLeft, isIntroPhase, currentQuestion, isSubmitting, feedback]);
 
@@ -306,6 +360,7 @@ useEffect(()=>{
       recognitionRef.current.stop();
       recognitionRef.current.abort();
     }
+    micStreamRef.current?.getTracks().forEach((track) => track.stop());
     window.speechSynthesis.cancel();
   };
 },[]);
@@ -377,7 +432,7 @@ useEffect(()=>{
 
               <div>
                 <span className='text-2xl font-bold text-emerald-600'>
-                  5
+                  {questions.length}
                 </span>
 
                 <span className='text-xs text-gray-400 block'>
@@ -410,6 +465,8 @@ useEffect(()=>{
          value={answer}
          className='flex-1 w-full outline-none border border-gray-200 focus:ring-2 focus:ring-emerald-500 transition text-gray-800 rounded-2xl p-4 resize-none' />
 
+        {submitError && <p className='mt-3 text-sm text-red-600' role='alert'>{submitError}</p>}
+
         { !feedback ? (<div className='flex items-center gap-4 mt-6' >
           <motion.button
           onClick={toggleMic}
@@ -418,6 +475,12 @@ useEffect(()=>{
            {isMicOn ? <FaMicrophone size={20}/> : <FaMicrophoneSlash size={20}/>}
           </motion.button>
 
+          {micError && (
+            <p className='mt-2 text-sm text-red-600' role='alert'>
+              {micError}
+            </p>
+          )}
+
           <motion.button
           onClick={submitAnswer}
           disabled={isSubmitting}
@@ -425,6 +488,16 @@ useEffect(()=>{
           className='flex-1 bg-gradient-to-r from-emerald-600 to-teal-500 text-white py-3 sm:py-4 rounded-2xl shadow-lg hover:opacity-90 transition font-semibold disabled:bg-gray-500'>
             {isSubmitting?"Submitting...":"Submit Answer"}
           </motion.button>
+
+          <button
+          onClick={() => {
+            setAnswer("");
+            submitAnswer("");
+          }}
+          disabled={isSubmitting}
+          className='px-4 py-3 sm:py-4 rounded-2xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition disabled:opacity-50'>
+            Skip
+          </button>
          </div>):(
           <motion.div
           initial ={{opacity:0}}
