@@ -27,7 +27,9 @@ const handleGoogleAuth = async () => {
         let name = User.displayName
         let email= User.email
         const result = await axios.post(ServerUrl + "/api/auth/google", {name,email},{withCredentials:true})
-        dispatch(setUserData(result.data))
+        localStorage.setItem("interviewiq_token", result.data.token)
+        axios.defaults.headers.common.Authorization = `Bearer ${result.data.token}`
+        dispatch(setUserData(result.data.user))
         navigate("/")
         
     } catch(error){
